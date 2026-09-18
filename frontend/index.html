@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TYPE CLASH — Competitive Real-Time Typing Battle</title>
+  <meta name="description" content="Type Fast. Type Accurate. Defeat Your Opponent. Compete in real-time 1v1 typing battles, challenge AI, and climb the leaderboard in TYPE CLASH.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Socket.IO Client -->
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+
+  <!-- BACKGROUND PARTICLES & GLOW -->
+  <div class="cyber-grid"></div>
+  <div class="ambient-glow cyan-glow"></div>
+  <div class="ambient-glow purple-glow"></div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="app" class="app-container">
+
+    <!-- NAVIGATION HEADER -->
+    <header class="cyber-header">
+      <div class="nav-left">
+        <a href="/" class="logo-link" id="logoBtn">
+          <span class="logo-icon">⚡</span>
+          <span class="logo-text">TYPE<span class="highlight">CLASH</span></span>
+        </a>
+      </div>
+
+      <nav class="nav-center">
+        <button class="nav-tab active" id="navHomeBtn" data-view="home">Battle Arena</button>
+        <button class="nav-tab" id="navLeaderboardBtn" data-view="leaderboard">Leaderboard</button>
+        <button class="nav-tab" id="navProfileBtn" data-view="profile">Profile</button>
+      </nav>
+
+      <div class="nav-right">
+        <!-- Sound FX Toggle -->
+        <button class="icon-btn" id="soundToggleBtn" title="Toggle Sound FX">
+          <span id="soundIcon">🔊</span>
+        </button>
+
+        <!-- Auth State -->
+        <div id="authContainer">
+          <!-- Unauthenticated -->
+          <button class="btn btn-sm btn-outline-cyan" id="openLoginBtn">
+            Sign In
+          </button>
+
+          <!-- Authenticated (Hidden by default) -->
+          <div id="userProfileChip" class="user-chip hidden">
+            <img id="userNavAvatar" src="" alt="Avatar" class="avatar-sm">
+            <span id="userNavName" class="user-chip-name">Typist</span>
+            <button class="btn-logout" id="logoutBtn" title="Sign Out">✕</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- NOTIFICATION TOAST -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- VIEW: HOME -->
+    <section id="viewHome" class="view-panel active">
+      <div class="hero-section">
+        <div class="badge-tag">SEASON 1 LIVE • REAL-TIME PVP</div>
+        <h1 class="hero-title">
+          TYPE <span class="glow-cyan">FAST.</span> TYPE <span class="glow-purple">ACCURATE.</span><br>
+          <span class="hero-subglow">DEFEAT YOUR OPPONENT.</span>
+        </h1>
+        <p class="hero-desc">
+          Enter the battle arena where precision meets adrenaline. Face realistic AI opponents, challenge friends in synchronous 1v1 duels, and rise up the global rankings.
+        </p>
+
+        <!-- Primary CTAs -->
+        <div class="hero-cta-group">
+          <button class="btn btn-lg btn-primary-cyan" id="heroPlaySoloBtn">
+            <span class="btn-icon">🤖</span>
+            <span>PLAY SOLO</span>
+          </button>
+          <button class="btn btn-lg btn-primary-purple" id="heroPlayPvpBtn">
+            <span class="btn-icon">⚡</span>
+            <span>2 PLAYER BATTLE</span>
+          </button>
+        </div>
+
+        <!-- Quick Code Join Bar -->
+        <div class="quick-join-bar">
+          <span class="quick-join-label">HAVE A ROOM CODE?</span>
+          <div class="quick-join-inputs">
+            <input type="text" id="quickRoomCodeInput" placeholder="e.g. A7K9X2" maxlength="6" autocomplete="off" spellcheck="false">
+            <button class="btn btn-sm btn-outline-cyan" id="quickJoinBtn">JOIN</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FEATURE CARDS -->
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon cyan-neon">⚡</div>
+          <h3>Improve Your WPM</h3>
+          <p>Standardized competitive typing calculations give you real-time speed feedback with every keystroke.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon purple-neon">🎯</div>
+          <h3>Increase Accuracy</h3>
+          <p>Precision matters. Mistakes penalize your combat score, rewarding disciplined and fluid typists.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon emerald-neon">🏆</div>
+          <h3>Compete With Friends</h3>
+          <p>Instant invite links. Send a room URL through WhatsApp, Discord, or Telegram and jump into the fight.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon gold-neon">🤖</div>
+          <h3>Challenge AI</h3>
+          <p>Battle synthetic intelligences with realistic typing cadence, authentic mistakes, and 4 difficulty tiers.</p>
+        </div>
+      </div>
+
+      <!-- SERVER HEALTH BADGE -->
+      <div class="server-status-bar">
+        <span class="status-indicator live"></span>
+        <span id="serverStatusText">System Status: Connected • Ready for Battle</span>
+      </div>
+    </section>
+
+    <!-- VIEW: SOLO DIFFICULTY MODAL / PANEL -->
+    <div id="modalSolo" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <button class="modal-close" id="closeSoloModalBtn">✕</button>
+        <div class="modal-header">
+          <span class="badge-tag">TRAINING GROUND</span>
+          <h2>CHOOSE AI DIFFICULTY</h2>
+          <p>Select your synthetic opponent. The AI dynamically simulates human-like typing cadence and natural errors.</p>
+        </div>
+
+        <div class="difficulty-grid">
+          <label class="diff-card" data-diff="easy">
+            <input type="radio" name="aiDifficulty" value="easy">
+            <div class="diff-info">
+              <span class="diff-name emerald">EASY</span>
+              <span class="diff-meta">~35-45 WPM • 90% Acc</span>
+              <p class="diff-desc">Gentle pacing with frequent pauses. Perfect for warming up.</p>
+            </div>
+          </label>
+
+          <label class="diff-card selected" data-diff="medium">
+            <input type="radio" name="aiDifficulty" value="medium" checked>
+            <div class="diff-info">
+              <span class="diff-name cyan">MEDIUM</span>
+              <span class="diff-meta">~55-70 WPM • 94% Acc</span>
+              <p class="diff-desc">Consistent flow with steady rhythm and occasional typo fixes.</p>
+            </div>
+          </label>
+
+          <label class="diff-card" data-diff="hard">
+            <input type="radio" name="aiDifficulty" value="hard">
+            <div class="diff-info">
+              <span class="diff-name purple">HARD</span>
+              <span class="diff-meta">~80-95 WPM • 97% Acc</span>
+              <p class="diff-desc">Rapid and razor sharp. Requires disciplined keystrokes to overcome.</p>
+            </div>
+          </label>
+
+          <label class="diff-card" data-diff="expert">
+            <input type="radio" name="aiDifficulty" value="expert">
+            <div class="diff-info">
+              <span class="diff-name rose">EXPERT</span>
+              <span class="diff-meta">~110-130 WPM • 99% Acc</span>
+              <p class="diff-desc">Grandmaster machine precision. For elite keyboard gladiators only.</p>
+            </div>
+          </label>
+        </div>
+
+        <button class="btn btn-lg btn-primary-cyan full-width" id="startSoloGameBtn">
+          START SOLO MATCH
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW: 2 PLAYER BATTLE CREATION -->
+    <section id="viewCreateBattle" class="view-panel hidden">
+      <div class="battle-setup-card">
+        <button class="back-link" id="createBackBtn">← Back to Menu</button>
+        <div class="setup-header">
+          <span class="badge-tag">MULTIPLAYER LOBBY</span>
+          <h2>CREATE 2 PLAYER BATTLE</h2>
+          <p>Host a match and send the invite link to a friend anywhere in the world.</p>
+        </div>
+
+        <div class="setup-form">
+          <div class="input-group">
+            <label for="createPlayerNameInput">Your Display Name</label>
+            <input type="text" id="createPlayerNameInput" placeholder="Enter your name" maxlength="20" value="Gokul">
+          </div>
+
+          <button class="btn btn-lg btn-primary-purple full-width" id="confirmCreateBattleBtn">
+            ⚡ CREATE BATTLE
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: BATTLE LOBBY (WAITING FOR FRIEND) -->
+    <section id="viewBattleLobby" class="view-panel hidden">
+      <div class="lobby-card">
+        <div class="lobby-status-banner">
+          <div class="pulse-ring"></div>
+          <h2 id="lobbyTitle">BATTLE CREATED!</h2>
+          <p id="lobbySubtitle">Waiting for your friend to join the arena...</p>
+        </div>
+
+        <!-- Room ID & Invite URL Card -->
+        <div class="room-share-box">
+          <div class="share-field">
+            <span class="share-label">ROOM CODE</span>
+            <div class="room-code-display" id="lobbyRoomCode">A7K9X2</div>
+          </div>
+
+          <div class="share-field">
+            <span class="share-label">INVITE LINK</span>
+            <div class="invite-url-wrapper">
+              <input type="text" id="lobbyInviteUrlInput" readonly value="">
+              <button class="btn btn-sm btn-outline-cyan" id="copyInviteLinkBtn">📋 COPY LINK</button>
+              <button class="btn btn-sm btn-outline-purple" id="shareInviteBtn">🚀 SHARE</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLAYERS STATUS SLOTS -->
+        <div class="players-lobby-grid">
+          <!-- Player 1 Slot -->
+          <div class="player-slot active" id="slotPlayer1">
+            <div class="slot-badge">HOST (PLAYER 1)</div>
+            <div class="slot-avatar-wrap">
+              <img id="slotP1Avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=P1" alt="P1" class="avatar-lg">
+              <span class="ready-dot" id="slotP1ReadyDot"></span>
+            </div>
+            <div class="slot-name" id="slotP1Name">Host Typist</div>
+            <div class="slot-status ready-text" id="slotP1Status">Ready</div>
+          </div>
+
+          <div class="vs-divider">VS</div>
+
+          <!-- Player 2 Slot -->
+          <div class="player-slot waiting" id="slotPlayer2">
+            <div class="slot-badge">CHALLENGER (PLAYER 2)</div>
+            <div class="slot-avatar-wrap">
+              <img id="slotP2Avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=P2" alt="P2" class="avatar-lg">
+              <span class="ready-dot" id="slotP2ReadyDot"></span>
+            </div>
+            <div class="slot-name" id="slotP2Name">Waiting for friend...</div>
+            <div class="slot-status waiting-text" id="slotP2Status">Empty Slot</div>
+          </div>
+        </div>
+
+        <!-- LOBBY ACTION BUTTONS -->
+        <div class="lobby-actions">
+          <button class="btn btn-lg btn-outline-cyan" id="toggleReadyBtn">
+            I AM READY
+          </button>
+          <button class="btn btn-sm btn-outline-rose" id="leaveLobbyBtn">
+            Cancel & Exit
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: JOIN INVITE SCREEN (FOR PLAYER 2 RECEIVING URL) -->
+    <section id="viewJoinInvite" class="view-panel hidden">
+      <div class="invite-card">
+        <div class="invite-icon">⚡</div>
+        <div class="badge-tag">CHALLENGE RECEIVED</div>
+        <h2>YOU'RE INVITED TO A TYPING BATTLE!</h2>
+        <p>A challenger awaits your arrival in the arena.</p>
+
+        <div class="invite-details-box">
+          <div class="invite-row">
+            <span>Room Code:</span>
+            <strong id="inviteRoomDisplay" class="glow-cyan">A7K9X2</strong>
+          </div>
+          <div class="invite-row">
+            <span>Opponent:</span>
+            <strong id="inviteHostDisplay">Player 1</strong>
+          </div>
+        </div>
+
+        <!-- If not logged in, prompt Google Login -->
+        <div id="inviteAuthPrompt" class="invite-auth-box">
+          <p>Sign in with Google to record wins on the global leaderboard:</p>
+          <button class="btn btn-google full-width" id="inviteGoogleBtn">
+            <svg class="google-svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.98 0 12s.45 3.83 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+            Continue with Google
+          </button>
+          <div class="modal-divider"><span>OR PLAY AS GUEST</span></div>
+        </div>
+
+        <!-- Join Name Input -->
+        <div class="input-group">
+          <label for="inviteJoinNameInput">Your Combat Name</label>
+          <input type="text" id="inviteJoinNameInput" placeholder="Enter your name" maxlength="20" value="Challenger">
+        </div>
+
+        <button class="btn btn-lg btn-primary-cyan full-width" id="confirmJoinBattleBtn">
+          ENTER BATTLE
+        </button>
+      </div>
+    </section>
+
+    <!-- VIEW: ROOM FULL / ERROR SCREEN -->
+    <div id="modalRoomFull" class="modal-backdrop hidden">
+      <div class="modal-card text-center">
+        <div class="modal-icon rose">🚫</div>
+        <h2>ROOM FULL</h2>
+        <p id="roomFullMessage">This battle already has two players.</p>
+        <button class="btn btn-primary-cyan" id="returnHomeFromFullBtn">RETURN TO HOME</button>
+      </div>
+    </div>
+
+    <!-- SYNCHRONIZED COUNTDOWN OVERLAY -->
+    <div id="countdownOverlay" class="countdown-overlay hidden">
+      <div class="countdown-circle">
+        <span id="countdownNumber" class="countdown-text">3</span>
+      </div>
+      <div class="countdown-subtext">GET YOUR FINGERS READY!</div>
+    </div>
+
+    <!-- VIEW: TYPING BATTLE ARENA (HUD) -->
+    <section id="viewArena" class="view-panel hidden">
+      <!-- TOP HUD -->
+      <div class="arena-hud">
+        <div class="hud-player-stats" id="hudP1Box">
+          <div class="hud-stat-pill">
+            <span class="stat-label">WPM</span>
+            <span class="stat-value cyan" id="hudP1Wpm">0</span>
+          </div>
+          <div class="hud-stat-pill">
+            <span class="stat-label">ACCURACY</span>
+            <span class="stat-value emerald" id="hudP1Acc">100%</span>
+          </div>
+          <div class="hud-stat-pill">
+            <span class="stat-label">SCORE</span>
+            <span class="stat-value gold" id="hudP1Score">0</span>
+          </div>
+        </div>
+
+        <!-- CENTER TIMER -->
+        <div class="hud-timer-box">
+          <span class="timer-label">TIME REMAINING</span>
+          <div class="timer-countdown" id="hudTimer">01:00</div>
+        </div>
+
+        <div class="hud-player-stats right" id="hudP2Box">
+          <div class="hud-stat-pill">
+            <span class="stat-label">OPPONENT</span>
+            <span class="stat-value purple" id="hudP2Name">AI Opponent</span>
+          </div>
+          <div class="hud-stat-pill">
+            <span class="stat-label">WPM</span>
+            <span class="stat-value purple" id="hudP2Wpm">0</span>
+          </div>
+          <div class="hud-stat-pill">
+            <span class="stat-label">ACC</span>
+            <span class="stat-value emerald" id="hudP2Acc">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER DISPLAY: TYPING PASSAGE -->
+      <div class="passage-terminal" id="passageTerminal">
+        <div class="terminal-bar">
+          <div class="terminal-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <div class="terminal-title" id="terminalTitle">MATCH PASSAGE • TYPE ACCURATELY</div>
+          <div class="terminal-badge" id="terminalModeBadge">SOLO vs AI</div>
+        </div>
+
+        <!-- Interactive Typing Box with Caret -->
+        <div class="passage-box-wrapper" id="passageBoxWrapper">
+          <div class="passage-content" id="passageContent">
+            <!-- Rendered character spans go here dynamically -->
+          </div>
+          <!-- Hidden transparent input to capture all keystrokes and virtual mobile keyboards -->
+          <input type="text" id="hiddenTypingInput" class="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onpaste="return false;">
+        </div>
+
+        <!-- Caret Focus Click Hint -->
+        <div class="passage-hint" id="passageHint">Click here or start typing to engage your keyboard</div>
+      </div>
+
+      <!-- BOTTOM RACING PROGRESS BARS -->
+      <div class="arena-progress-track">
+        <!-- Player 1 Progress -->
+        <div class="racer-row">
+          <div class="racer-info">
+            <span class="racer-avatar">⚡</span>
+            <span class="racer-name" id="trackP1Name">You</span>
+          </div>
+          <div class="progress-bar-container cyan-track">
+            <div class="progress-fill" id="trackP1Fill" style="width: 0%;">
+              <span class="progress-glow"></span>
+            </div>
+          </div>
+          <span class="progress-pct cyan" id="trackP1Pct">0%</span>
+        </div>
+
+        <!-- VS MIDPOINT BADGE -->
+        <div class="track-vs">VS</div>
+
+        <!-- Player 2 / AI Progress -->
+        <div class="racer-row">
+          <div class="racer-info">
+            <span class="racer-avatar">🤖</span>
+            <span class="racer-name" id="trackP2Name">AI</span>
+          </div>
+          <div class="progress-bar-container purple-track">
+            <div class="progress-fill" id="trackP2Fill" style="width: 0%;">
+              <span class="progress-glow"></span>
+            </div>
+          </div>
+          <span class="progress-pct purple" id="trackP2Pct">0%</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: RESULT SCREEN -->
+    <section id="viewResult" class="view-panel hidden">
+      <div class="result-card">
+        <div class="result-header">
+          <div class="trophy-icon">🏆</div>
+          <div class="badge-tag" id="resultMatchTag">MATCH CONCLUDED</div>
+          <h1 class="result-winner" id="resultWinnerTitle">WINNER: YOU</h1>
+          <p class="result-motto" id="resultMotivationalMessage">Great typing! Maintain this rhythm and precision.</p>
+        </div>
+
+        <!-- COMPARISON STATS GRID -->
+        <div class="result-stats-comparison">
+          <!-- Player 1 Card -->
+          <div class="result-player-box" id="resP1Box">
+            <div class="res-box-header">
+              <span class="res-player-label">PLAYER 1</span>
+              <h3 id="resP1Name">Gokul</h3>
+            </div>
+            <div class="res-stats-list">
+              <div class="res-stat-row">
+                <span>WPM</span>
+                <strong class="cyan" id="resP1Wpm">72</strong>
+              </div>
+              <div class="res-stat-row">
+                <span>Accuracy</span>
+                <strong class="emerald" id="resP1Acc">96%</strong>
+              </div>
+              <div class="res-stat-row">
+                <span>Correct Characters</span>
+                <strong id="resP1Correct">285</strong>
+              </div>
+              <div class="res-stat-row">
+                <span>Wrong Characters</span>
+                <strong class="rose" id="resP1Wrong">12</strong>
+              </div>
+              <div class="res-stat-row total-score-row">
+                <span>Final Score</span>
+                <strong class="gold" id="resP1Score">842</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Player 2 Card -->
+          <div class="result-player-box" id="resP2Box">
+            <div class="res-box-header">
+              <span class="res-player-label">PLAYER 2</span>
+              <h3 id="resP2Name">AI Opponent</h3>
+            </div>
+            <div class="res-stats-list">
+              <div class="res-stat-row">
+                <span>WPM</span>
+                <strong class="purple" id="resP2Wpm">65</strong>
+              </div>
+              <div class="res-stat-row">
+                <span>Accuracy</span>
+                <strong class="emerald" id="resP2Acc">91%</strong>
+              </div>
+              <div class="res-stat-row">
+                <span>Correct Characters</span>
+                <strong id="resP2Correct">260</strong>
+              </div>
+              <div class="res-stat-row">
+                <span>Wrong Characters</span>
+                <strong class="rose" id="resP2Wrong">20</strong>
+              </div>
+              <div class="res-stat-row total-score-row">
+                <span>Final Score</span>
+                <strong class="gold" id="resP2Score">701</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="result-actions">
+          <button class="btn btn-lg btn-primary-cyan" id="playAgainBtn">⚡ PLAY AGAIN</button>
+          <button class="btn btn-lg btn-outline-purple" id="resultMainMenuBtn">MAIN MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: LEADERBOARD -->
+    <section id="viewLeaderboard" class="view-panel hidden">
+      <div class="leaderboard-card">
+        <div class="leaderboard-header">
+          <div class="badge-tag">HALL OF GLORY</div>
+          <h2>GLOBAL TYPING LEADERBOARD</h2>
+          <p>Top battle combatants ranked by validated score, speed, and precision.</p>
+
+          <!-- Timeframe Filter Tabs -->
+          <div class="filter-tabs">
+            <button class="filter-tab" data-filter="today">Today</button>
+            <button class="filter-tab" data-filter="week">This Week</button>
+            <button class="filter-tab active" data-filter="all-time">All Time</button>
+          </div>
+        </div>
+
+        <!-- Leaderboard Table -->
+        <div class="leaderboard-table-wrapper">
+          <table class="cyber-table">
+            <thead>
+              <tr>
+                <th>RANK</th>
+                <th>PLAYER</th>
+                <th>WPM</th>
+                <th>ACCURACY</th>
+                <th>SCORE</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardTbody">
+              <!-- Dynamically populated from MongoDB -->
+              <tr>
+                <td colspan="5" class="text-center">Loading live leaderboard data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: PROFILE -->
+    <section id="viewProfile" class="view-panel hidden">
+      <div class="profile-card">
+        <div class="profile-hero">
+          <img id="profAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Profile" alt="Avatar" class="avatar-xl">
+          <div class="profile-identity">
+            <h2 id="profUsername">Gokul</h2>
+            <span class="provider-tag" id="profProvider">Google Account</span>
+            <span class="email-sub" id="profEmail">user@example.com</span>
+          </div>
+        </div>
+
+        <!-- STATS MATRIX -->
+        <div class="stats-matrix">
+          <div class="matrix-card">
+            <span class="matrix-label">BEST WPM</span>
+            <strong class="matrix-val cyan" id="profBestWpm">92</strong>
+          </div>
+          <div class="matrix-card">
+            <span class="matrix-label">BEST ACCURACY</span>
+            <strong class="matrix-val emerald" id="profBestAcc">97%</strong>
+          </div>
+          <div class="matrix-card">
+            <span class="matrix-label">TOTAL GAMES</span>
+            <strong class="matrix-val" id="profTotalGames">25</strong>
+          </div>
+          <div class="matrix-card">
+            <span class="matrix-label">WINS</span>
+            <strong class="matrix-val emerald" id="profWins">18</strong>
+          </div>
+          <div class="matrix-card">
+            <span class="matrix-label">LOSSES</span>
+            <strong class="matrix-val rose" id="profLosses">7</strong>
+          </div>
+          <div class="matrix-card">
+            <span class="matrix-label">TOTAL SCORE</span>
+            <strong class="matrix-val gold" id="profTotalScore">18,450</strong>
+          </div>
+        </div>
+
+        <!-- RECENT GAMES HISTORY -->
+        <div class="profile-history">
+          <h3>RECENT MATCH HISTORY</h3>
+          <div class="history-table-wrapper">
+            <table class="cyber-table compact">
+              <thead>
+                <tr>
+                  <th>MODE</th>
+                  <th>OPPONENT</th>
+                  <th>RESULT</th>
+                  <th>WPM</th>
+                  <th>ACCURACY</th>
+                  <th>DATE</th>
+                </tr>
+              </thead>
+              <tbody id="profHistoryTbody">
+                <tr>
+                  <td colspan="6" class="text-center">No match history recorded yet. Play a match!</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUTH MODAL (LOGIN & REGISTRATION) -->
+    <div id="modalAuth" class="modal-backdrop hidden">
+      <div class="modal-card auth-card">
+        <button class="modal-close" id="closeAuthModalBtn">✕</button>
+        <div class="modal-header">
+          <div class="logo-icon sm">⚡</div>
+          <h2>TYPE CLASH</h2>
+          <p id="authSubtitle">Enter the Battle Arena</p>
+        </div>
+
+        <!-- REAL GOOGLE AUTH BUTTON -->
+        <a href="/api/auth/google" class="btn btn-google full-width" id="googleAuthLink">
+          <svg class="google-svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.98 0 12s.45 3.83 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+          Continue with Google
+        </a>
+
+        <div class="modal-divider"><span>OR</span></div>
+
+        <!-- Form: Login -->
+        <form id="loginForm" class="auth-form">
+          <div class="input-group">
+            <label for="loginEmailInput">Email</label>
+            <input type="email" id="loginEmailInput" placeholder="Enter Email" required>
+          </div>
+          <div class="input-group">
+            <label for="loginPasswordInput">Password</label>
+            <input type="password" id="loginPasswordInput" placeholder="Enter Password" required>
+          </div>
+          <button type="submit" class="btn btn-primary-cyan full-width" id="loginSubmitBtn">
+            LOGIN
+          </button>
+          <div class="auth-toggle-link">
+            Need an account? <a href="#" id="toggleToRegisterLink">CREATE ACCOUNT</a>
+          </div>
+        </form>
+
+        <!-- Form: Register (Hidden by default) -->
+        <form id="registerForm" class="auth-form hidden">
+          <div class="input-group">
+            <label for="regUsernameInput">Username</label>
+            <input type="text" id="regUsernameInput" placeholder="Enter Username" required minlength="2" maxlength="25">
+          </div>
+          <div class="input-group">
+            <label for="regEmailInput">Email</label>
+            <input type="email" id="regEmailInput" placeholder="Enter Email" required>
+          </div>
+          <div class="input-group">
+            <label for="regPasswordInput">Password</label>
+            <input type="password" id="regPasswordInput" placeholder="Enter Password (min 6 characters)" required minlength="6">
+          </div>
+          <div class="input-group">
+            <label for="regConfirmPasswordInput">Confirm Password</label>
+            <input type="password" id="regConfirmPasswordInput" placeholder="Confirm Password" required minlength="6">
+          </div>
+          <button type="submit" class="btn btn-primary-purple full-width" id="registerSubmitBtn">
+            CREATE ACCOUNT
+          </button>
+          <div class="auth-toggle-link">
+            Already have an account? <a href="#" id="toggleToLoginLink">LOGIN</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- PLAYER DISCONNECTED MODAL -->
+    <div id="modalDisconnect" class="modal-backdrop hidden">
+      <div class="modal-card text-center">
+        <div class="modal-icon yellow">⚠️</div>
+        <h2>PLAYER DISCONNECTED</h2>
+        <p id="disconnectMessage">Your opponent has disconnected from the battle.</p>
+        <button class="btn btn-primary-cyan" id="returnHomeFromDisconnectBtn">RETURN TO HOME</button>
+      </div>
+    </div>
+
+  </div> <!-- End App Container -->
+
+  <!-- Application Script -->
+  <script src="script.js"></script>
+</body>
+</html>
