@@ -48,16 +48,19 @@
       try {
         this.initCtx();
         if (!this.ctx) return;
+        const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600 + Math.random() * 200, this.ctx.currentTime);
-        gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+        osc.type = 'triangle';
+        // Snappy tactile mechanical switch click (Cherry MX style)
+        osc.frequency.setValueAtTime(800 + Math.random() * 250, t);
+        osc.frequency.exponentialRampToValueAtTime(160, t + 0.022);
+        gain.gain.setValueAtTime(0.06, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.022);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.05);
+        osc.start(t);
+        osc.stop(t + 0.022);
       } catch (e) {}
     }
 
@@ -327,13 +330,219 @@
   }
 
   // =========================================================================
-  // 6. TYPING ENGINE
+  // 6. HARDWARE-ACCELERATED VISUAL FX & PARTICLE ENGINE
   // =========================================================================
+  const ParticleFx = (function () {
+    let canvas = null;
+    let ctx = null;
+    let particles = [];
+    let animId = null;
+
+    function init() {
+      canvas = document.getElementById('keystrokeFxCanvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+      resize();
+    }
+
+    function resize() {
+      if (!canvas) return;
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+    }
+
+    function burst(x, y, type = 'correct', combo = 0) {
+      if (!canvas || !ctx) init();
+      if (!canvas || !ctx) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const cx = x - rect.left;
+      const cy = y - rect.top;
+
+      const count = type === 'correct' ? (combo > 50 ? 10 : (combo > 20 ? 7 : 5)) : 7;
+
+      let colors;
+      if (type === 'wrong') {
+        colors = ['#ff2d55', '#ff5f56', '#ffffff'];
+      } else if (combo >= 100) {
+        colors = ['#ff007f', '#a855f7', '#ffd700', '#00f5ff'];
+      } else if (combo >= 50) {
+        colors = ['#ffd700', '#ff9d00', '#00ff88', '#ffffff'];
+      } else if (combo >= 20) {
+        colors = ['#00ff88', '#38ef7d', '#00f5ff', '#ffffff'];
+      } else {
+        colors = ['#00f5ff', '#00d2ff', '#ffffff'];
+      }
+
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8;
+        const speed = 1.5 + Math.random() * 3.2;
+        particles.push({
+          x: cx,
+          y: cy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - (type === 'correct' ? 1.0 : 0.3),
+          size: 2.2 + Math.random() * 2.2,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 1,
+          decay: 0.045 + Math.random() * 0.03
+        });
+      }
+
+      if (!animId) {
+        animId = requestAnimationFrame(update);
+      }
+    }
+
+    function celebration() {
+      if (!canvas || !ctx) init();
+      if (!canvas || !ctx) return;
+      const w = canvas.width;
+      const h = canvas.height;
+      const colors = ['#00f5ff', '#00ff88', '#ffd700', '#ff007f', '#a855f7'];
+
+      for (let i = 0; i < 70; i++) {
+        const x = w * (0.15 + Math.random() * 0.7);
+        const y = h * (0.2 + Math.random() * 0.5);
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 6;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 2.5,
+          size: 3 + Math.random() * 3.5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 1,
+          decay: 0.016 + Math.random() * 0.02
+        });
+      }
+
+      if (!animId) {
+        animId = requestAnimationFrame(update);
+      }
+    }
+
+    function update() {
+      if (!ctx || !canvas) {
+        animId = null;
+        return;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.07;
+        p.life -= p.decay;
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      if (particles.length > 0) {
+        animId = requestAnimationFrame(update);
+      } else {
+        animId = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function clear() {
+      particles = [];
+      if (animId) {
+        cancelAnimationFrame(animId);
+        animId = null;
+      }
+      if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    return { init, resize, burst, celebration, clear };
+  })();
+
+  function showFloatingPopup(text, type = 'streak', x = null, y = null) {
+    const layer = document.getElementById('floatingPopupsLayer');
+    if (!layer) return;
+    const popup = document.createElement('div');
+    popup.className = `floating-popup ${type}`;
+    popup.textContent = text;
+
+    if (x !== null && y !== null) {
+      const rect = layer.getBoundingClientRect();
+      popup.style.left = `${Math.max(30, Math.min(rect.width - 40, x - rect.left))}px`;
+      popup.style.top = `${Math.max(20, Math.min(rect.height - 20, y - rect.top))}px`;
+    } else {
+      popup.style.left = '50%';
+      popup.style.top = '35%';
+    }
+
+    layer.appendChild(popup);
+    setTimeout(() => popup.remove(), 750);
+  }
+
+  function triggerGlitchShake() {
+    const terminal = document.getElementById('passageTerminal');
+    if (terminal) {
+      terminal.classList.remove('glitch-shake');
+      void terminal.offsetWidth; // Trigger reflow
+      terminal.classList.add('glitch-shake');
+      setTimeout(() => terminal.classList.remove('glitch-shake'), 160);
+    }
+  }
+
+  function updateComboUI() {
+    const badge = document.getElementById('terminalComboBadge');
+    const countEl = document.getElementById('comboCount');
+    if (!badge || !countEl) return;
+
+    const combo = state.combo || 0;
+    countEl.textContent = combo;
+
+    if (combo >= 5) {
+      badge.classList.add('active');
+      badge.classList.remove('tier-2', 'tier-3', 'tier-4');
+      if (combo >= 100) {
+        badge.classList.add('tier-4');
+      } else if (combo >= 50) {
+        badge.classList.add('tier-3');
+      } else if (combo >= 20) {
+        badge.classList.add('tier-2');
+      }
+    } else {
+      badge.classList.remove('active', 'tier-2', 'tier-3', 'tier-4');
+    }
+  }
+
+  // =========================================================================
+  // 7. ULTRA-RESPONSIVE TYPING ENGINE (0MS ZERO LATENCY)
+  // =========================================================================
+  let lastSocketEmitTime = 0;
+  let metricRafId = null;
+
   function initTypingMatch(text, mode = 'solo', opponentName = 'AI Opponent') {
     state.text = text;
     state.currentIndex = 0;
     state.correctChars = 0;
     state.wrongChars = 0;
+    state.combo = 0;
+    state.maxCombo = 0;
     state.startTime = null;
     state.wpm = 0;
     state.accuracy = 100;
@@ -342,10 +551,19 @@
     state.isCompleted = false;
     state.timeRemaining = 60;
     state.gameMode = mode;
+    state.cachedSpans = [];
 
     clearInterval(state.timerInterval);
+    ParticleFx.clear();
 
-    // Setup HUD
+    // Reset terminal speed auras
+    const terminal = document.getElementById('passageTerminal');
+    if (terminal) {
+      terminal.classList.remove('speed-tier-1', 'speed-tier-2', 'speed-tier-3', 'glitch-shake');
+    }
+    updateComboUI();
+
+    // Setup HUD elements
     document.getElementById('hudP1Wpm').textContent = '0';
     document.getElementById('hudP1Acc').textContent = '100%';
     document.getElementById('hudP1Score').textContent = '0';
@@ -361,10 +579,9 @@
 
     document.getElementById('trackP1Name').textContent = state.user ? state.user.username : 'You';
     document.getElementById('trackP2Name').textContent = opponentName;
-
     document.getElementById('terminalModeBadge').textContent = mode === 'solo' ? `SOLO vs AI (${state.aiDifficulty.toUpperCase()})` : '2P PVP DUEL';
 
-    // Render characters
+    // Render characters with pre-cached references
     renderPassageCharacters(text);
 
     // Focus hidden input
@@ -375,19 +592,53 @@
     }
 
     switchView('arena');
+
+    // Resize particle canvas after arena becomes visible
+    setTimeout(() => ParticleFx.resize(), 50);
   }
 
   function renderPassageCharacters(text) {
     const container = document.getElementById('passageContent');
     if (!container) return;
     container.innerHTML = '';
+    state.cachedSpans = [];
 
+    const fragment = document.createDocumentFragment();
     for (let i = 0; i < text.length; i++) {
       const span = document.createElement('span');
       span.className = i === 0 ? 'char current' : 'char untyped';
-      span.dataset.idx = i;
       span.textContent = text[i];
-      container.appendChild(span);
+      fragment.appendChild(span);
+      state.cachedSpans.push(span);
+    }
+    container.appendChild(fragment);
+
+    // Reset scroll position
+    const wrapper = document.getElementById('passageBoxWrapper');
+    if (wrapper) wrapper.scrollTop = 0;
+  }
+
+  function updateCaretPosition() {
+    for (let i = 0; i < state.cachedSpans.length; i++) {
+      const span = state.cachedSpans[i];
+      if (i === state.currentIndex) {
+        if (!span.classList.contains('current')) span.classList.add('current');
+      } else {
+        if (span.classList.contains('current')) span.classList.remove('current');
+      }
+    }
+  }
+
+  function scrollActiveSpanIntoView() {
+    const currentSpan = state.cachedSpans[state.currentIndex];
+    const wrapper = document.getElementById('passageBoxWrapper');
+    if (currentSpan && wrapper) {
+      const spanTop = currentSpan.offsetTop;
+      if (spanTop > wrapper.scrollTop + 110) {
+        wrapper.scrollTo({ top: spanTop - 40, behavior: 'smooth' });
+      } else if (spanTop < wrapper.scrollTop + 20) {
+        wrapper.scrollTo({ top: Math.max(0, spanTop - 20), behavior: 'smooth' });
+      }
     }
   }
 
@@ -411,7 +662,20 @@
     }, 1000);
   }
 
-  function updateTypingMetrics() {
+  function requestMetricUpdate(forceFinal = false) {
+    if (forceFinal) {
+      updateTypingMetrics(true);
+      return;
+    }
+    if (!metricRafId) {
+      metricRafId = requestAnimationFrame(() => {
+        metricRafId = null;
+        updateTypingMetrics(false);
+      });
+    }
+  }
+
+  function updateTypingMetrics(forceEmit = false) {
     if (!state.startTime) return;
     const elapsedSeconds = Math.max(1, (Date.now() - state.startTime) / 1000);
 
@@ -426,13 +690,14 @@
     // Progress percentage
     state.progressPct = Math.min(100, Math.max(0, Math.round((state.correctChars / state.text.length) * 100)));
 
-    // Balanced competitive score
+    // Balanced competitive score with combo multiplier
     const speedPoints = state.wpm * 6;
     const volumePoints = state.correctChars * 2;
     const accFactor = Math.pow(state.accuracy / 100, 1.8);
     const typoPenalty = state.wrongChars * 8;
-    const completionBonus = state.isCompleted ? 200 : Math.round(state.progressPct * 1.5);
-    state.score = Math.max(0, Math.round(((speedPoints + volumePoints) * accFactor) - typoPenalty + completionBonus));
+    const comboBonus = Math.round((state.combo || 0) * 1.5);
+    const completionBonus = state.isCompleted ? 250 : Math.round(state.progressPct * 1.5);
+    state.score = Math.max(0, Math.round(((speedPoints + volumePoints) * accFactor) - typoPenalty + comboBonus + completionBonus));
 
     // Update UI HUD
     document.getElementById('hudP1Wpm').textContent = state.wpm;
@@ -441,22 +706,43 @@
     document.getElementById('trackP1Fill').style.width = `${state.progressPct}%`;
     document.getElementById('trackP1Pct').textContent = `${state.progressPct}%`;
 
-    // If multiplayer, emit live progress
-    if (state.gameMode === 'pvp' && state.socket && state.roomId) {
-      state.socket.emit('typingProgress', {
-        roomId: state.roomId,
-        index: state.currentIndex,
-        correctCharacters: state.correctChars,
-        wrongCharacters: state.wrongChars,
-        wpm: state.wpm,
-        accuracy: state.accuracy,
-        score: state.score,
-        progressPct: state.progressPct
-      });
+    // Dynamic Speed Aura on Terminal
+    const terminal = document.getElementById('passageTerminal');
+    if (terminal) {
+      if (state.wpm >= 95) {
+        terminal.classList.remove('speed-tier-1', 'speed-tier-2');
+        terminal.classList.add('speed-tier-3');
+      } else if (state.wpm >= 65) {
+        terminal.classList.remove('speed-tier-1', 'speed-tier-3');
+        terminal.classList.add('speed-tier-2');
+      } else if (state.wpm >= 35) {
+        terminal.classList.remove('speed-tier-2', 'speed-tier-3');
+        terminal.classList.add('speed-tier-1');
+      } else {
+        terminal.classList.remove('speed-tier-1', 'speed-tier-2', 'speed-tier-3');
+      }
+    }
+
+    // Throttled WebSocket progress emission (prevents socket lag during high WPM)
+    const now = Date.now();
+    if (forceEmit || (now - lastSocketEmitTime > 120)) {
+      lastSocketEmitTime = now;
+      if (state.gameMode === 'pvp' && state.socket && state.roomId) {
+        state.socket.emit('typingProgress', {
+          roomId: state.roomId,
+          index: state.currentIndex,
+          correctCharacters: state.correctChars,
+          wrongCharacters: state.wrongChars,
+          wpm: state.wpm,
+          accuracy: state.accuracy,
+          score: state.score,
+          progressPct: state.progressPct
+        });
+      }
     }
   }
 
-  function handleTypingKeystroke(e) {
+  function handleCharacterInput(typedChar) {
     if (state.isCompleted || state.currentView !== 'arena') return;
 
     // Start timer on very first keystroke
@@ -467,60 +753,140 @@
       }
     }
 
-    const input = e.target;
-    const val = input.value;
-    input.value = ''; // Keep transparent input empty
+    if (state.currentIndex >= state.text.length) return;
 
-    if (!val || val.length === 0) return;
-
-    const typedChar = val.charAt(val.length - 1);
     const expectedChar = state.text[state.currentIndex];
-    const container = document.getElementById('passageContent');
-    const spans = container ? container.children : [];
-    const currentSpan = spans[state.currentIndex];
+    const span = state.cachedSpans[state.currentIndex];
 
     if (typedChar === expectedChar) {
-      // Correct keystroke
+      // 1. CORRECT KEYSTROKE
       Sound.playKey();
       state.correctChars++;
-      if (currentSpan) {
-        currentSpan.className = 'char correct';
-      }
-      state.currentIndex++;
+      state.combo = (state.combo || 0) + 1;
+      if (state.combo > (state.maxCombo || 0)) state.maxCombo = state.combo;
 
-      // Advance caret to next character
-      if (state.currentIndex < state.text.length) {
-        const nextSpan = spans[state.currentIndex];
-        if (nextSpan) nextSpan.className = 'char current';
-      } else {
-        // MATCH FINISHED BY PLAYER!
-        state.isCompleted = true;
-        state.progressPct = 100;
-        updateTypingMetrics();
-        Sound.playVictory();
-        clearInterval(state.timerInterval);
-        if (state.gameMode === 'solo') {
-          AIEngine.stop();
-          setTimeout(() => endMatch('Text Completed!'), 400);
+      if (span) {
+        span.className = 'char correct';
+        const rect = span.getBoundingClientRect();
+        ParticleFx.burst(rect.left + rect.width / 2, rect.top + rect.height / 2, 'correct', state.combo);
+
+        // Milestone rewards
+        if (state.combo === 15) {
+          showFloatingPopup('🔥 15 STREAK!', 'streak', rect.left, rect.top);
+        } else if (state.combo === 30) {
+          showFloatingPopup('⚡ 30 STREAK (1.3x)!', 'bonus', rect.left, rect.top);
+        } else if (state.combo === 60) {
+          showFloatingPopup('💥 60 COMBO OVERDRIVE!', 'bonus', rect.left, rect.top);
+        } else if (state.combo === 100) {
+          showFloatingPopup('👑 100 GODLIKE STREAK!', 'perfect', rect.left, rect.top);
         }
       }
+
+      state.currentIndex++;
+
+      // Check if text is finished
+      if (state.currentIndex >= state.text.length) {
+        state.isCompleted = true;
+        state.progressPct = 100;
+        updateCaretPosition();
+        requestMetricUpdate(true);
+        Sound.playVictory();
+        clearInterval(state.timerInterval);
+        ParticleFx.celebration();
+        showFloatingPopup('🏆 MATCH COMPLETED!', 'perfect');
+        if (state.gameMode === 'solo') {
+          AIEngine.stop();
+          setTimeout(() => endMatch('Text Completed!'), 450);
+        }
+        return;
+      }
     } else {
-      // Wrong keystroke (Typo)
+      // 2. TYPO KEYSTROKE (Never freezes typist, tracks error, allows Backspace)
       Sound.playError();
       state.wrongChars++;
-      if (currentSpan) {
-        currentSpan.className = 'char wrong current';
-        // Shake character briefly
-        setTimeout(() => {
-          if (currentSpan && currentSpan.classList.contains('wrong')) {
-            currentSpan.classList.remove('wrong');
-            currentSpan.classList.add('wrong');
-          }
-        }, 150);
+      state.combo = 0; // Reset streak
+
+      if (span) {
+        span.className = 'char wrong';
+        const rect = span.getBoundingClientRect();
+        ParticleFx.burst(rect.left + rect.width / 2, rect.top + rect.height / 2, 'wrong');
+      }
+
+      triggerGlitchShake();
+      state.currentIndex++;
+
+      if (state.currentIndex >= state.text.length) {
+        state.currentIndex = state.text.length - 1;
       }
     }
 
-    updateTypingMetrics();
+    // Advance Caret
+    updateCaretPosition();
+    updateComboUI();
+    scrollActiveSpanIntoView();
+    requestMetricUpdate(false);
+  }
+
+  function handleBackspace(ctrlPressed = false) {
+    if (state.isCompleted || state.currentView !== 'arena' || state.currentIndex <= 0) return;
+
+    Sound.playKey();
+
+    if (ctrlPressed) {
+      // Word backspace: Delete back to preceding space
+      while (state.currentIndex > 0) {
+        const prevIdx = state.currentIndex - 1;
+        const span = state.cachedSpans[prevIdx];
+        if (span) {
+          if (span.classList.contains('correct')) state.correctChars = Math.max(0, state.correctChars - 1);
+          if (span.classList.contains('wrong')) state.wrongChars = Math.max(0, state.wrongChars - 1);
+          span.className = 'char untyped';
+        }
+        state.currentIndex--;
+        if (prevIdx > 0 && state.text[prevIdx - 1] === ' ') break;
+      }
+    } else {
+      // Single character backspace
+      const prevIdx = state.currentIndex - 1;
+      const span = state.cachedSpans[prevIdx];
+      if (span) {
+        if (span.classList.contains('correct')) state.correctChars = Math.max(0, state.correctChars - 1);
+        if (span.classList.contains('wrong')) state.wrongChars = Math.max(0, state.wrongChars - 1);
+        span.className = 'char untyped';
+      }
+      state.currentIndex--;
+    }
+
+    updateCaretPosition();
+    updateComboUI();
+    scrollActiveSpanIntoView();
+    requestMetricUpdate(false);
+  }
+
+  function handleKeyDown(e) {
+    if (state.isCompleted || state.currentView !== 'arena') return;
+
+    // Prevent default scrolling on Space and browser back on Backspace
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      handleBackspace(e.ctrlKey);
+      return;
+    }
+
+    if (e.key === ' ') {
+      e.preventDefault();
+      handleCharacterInput(' ');
+      return;
+    }
+
+    if (e.key === 'Tab' || e.key === 'Escape') {
+      return;
+    }
+
+    // Standard printable character
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      handleCharacterInput(e.key);
+    }
   }
 
   async function endMatch(reason = 'Match Concluded') {
@@ -1280,16 +1646,42 @@
       }
     });
 
-    // Typing Input Event
+    // High-Performance Zero-Latency Typing Listeners
     const hiddenInput = document.getElementById('hiddenTypingInput');
     if (hiddenInput) {
-      hiddenInput.addEventListener('input', handleTypingKeystroke);
+      hiddenInput.addEventListener('keydown', handleKeyDown);
+
+      // Mobile / Virtual keyboard input fallback
+      hiddenInput.addEventListener('input', (e) => {
+        const val = hiddenInput.value;
+        hiddenInput.value = '';
+        if (!val) return;
+        for (let i = 0; i < val.length; i++) {
+          handleCharacterInput(val[i]);
+        }
+      });
     }
+
+    // Global keydown capture when arena is active (even if focus drifts)
+    window.addEventListener('keydown', (e) => {
+      if (state.currentView === 'arena' && !state.isCompleted) {
+        if (document.activeElement !== hiddenInput && 
+            document.activeElement.tagName !== 'INPUT' && 
+            document.activeElement.tagName !== 'TEXTAREA') {
+          handleKeyDown(e);
+          if (hiddenInput) hiddenInput.focus();
+        }
+      }
+    });
 
     // Keep typing terminal focused on click
     const terminal = document.getElementById('passageTerminal');
     if (terminal && hiddenInput) {
       terminal.addEventListener('click', () => hiddenInput.focus());
+    }
+    const passageWrapper = document.getElementById('passageBoxWrapper');
+    if (passageWrapper && hiddenInput) {
+      passageWrapper.addEventListener('click', () => hiddenInput.focus());
     }
 
     // Result Buttons

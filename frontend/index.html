@@ -384,11 +384,21 @@
             <span class="dot green"></span>
           </div>
           <div class="terminal-title" id="terminalTitle">MATCH PASSAGE • TYPE ACCURATELY</div>
+          <div class="terminal-combo-badge" id="terminalComboBadge">
+            <span class="combo-icon">🔥</span>
+            <span class="combo-text" id="comboCount">0</span>
+            <span class="combo-tag">STREAK</span>
+          </div>
           <div class="terminal-badge" id="terminalModeBadge">SOLO vs AI</div>
         </div>
 
-        <!-- Interactive Typing Box with Caret -->
+        <!-- Interactive Typing Box with Caret & Visual FX Layer -->
         <div class="passage-box-wrapper" id="passageBoxWrapper">
+          <!-- Hardware-Accelerated Particle Canvas -->
+          <canvas id="keystrokeFxCanvas" class="keystroke-fx-canvas"></canvas>
+          <!-- Floating Score & Combo Popups -->
+          <div class="floating-popups-layer" id="floatingPopupsLayer"></div>
+          
           <div class="passage-content" id="passageContent">
             <!-- Rendered character spans go here dynamically -->
           </div>

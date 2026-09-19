@@ -1139,6 +1139,42 @@ body {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 245, 255, 0.03);
   margin-bottom: 28px;
   position: relative;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Dynamic Speed Aura Tiers */
+.passage-terminal.speed-tier-1 {
+  border-color: rgba(0, 245, 255, 0.65);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 245, 255, 0.25), inset 0 0 25px rgba(0, 245, 255, 0.05);
+}
+
+.passage-terminal.speed-tier-2 {
+  border-color: rgba(0, 255, 136, 0.8);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.75), 0 0 35px rgba(0, 255, 136, 0.35), inset 0 0 30px rgba(0, 255, 136, 0.08);
+}
+
+.passage-terminal.speed-tier-3 {
+  border-color: #ffd700;
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.8), 0 0 45px rgba(255, 215, 0, 0.5), inset 0 0 35px rgba(255, 0, 128, 0.12);
+  animation: hyperdriveBorder 2s linear infinite;
+}
+
+@keyframes hyperdriveBorder {
+  0% { border-color: #ffd700; }
+  33% { border-color: #ff007f; }
+  66% { border-color: #00f5ff; }
+  100% { border-color: #ffd700; }
+}
+
+.passage-terminal.glitch-shake {
+  animation: terminalShake 0.15s ease;
+}
+
+@keyframes terminalShake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-3px, 2px); }
+  50% { transform: translate(3px, -2px); }
+  75% { transform: translate(-2px, 1px); }
 }
 
 .terminal-bar {
@@ -1148,6 +1184,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .terminal-dots {
@@ -1171,6 +1208,58 @@ body {
   font-weight: 700;
   letter-spacing: 1.5px;
   color: #94a3b8;
+  white-space: nowrap;
+}
+
+/* Esports Combo Streak Badge */
+.terminal-combo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 120, 0, 0.15);
+  border: 1px solid rgba(255, 120, 0, 0.4);
+  color: #ff9d00;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.5px;
+}
+
+.terminal-combo-badge.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.terminal-combo-badge.tier-2 {
+  background: rgba(0, 255, 136, 0.18);
+  border-color: rgba(0, 255, 136, 0.6);
+  color: var(--neon-emerald);
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+}
+
+.terminal-combo-badge.tier-3 {
+  background: rgba(0, 245, 255, 0.22);
+  border-color: rgba(0, 245, 255, 0.7);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 16px rgba(0, 245, 255, 0.45);
+}
+
+.terminal-combo-badge.tier-4 {
+  background: linear-gradient(135deg, rgba(255, 0, 128, 0.35), rgba(168, 85, 247, 0.35));
+  border-color: #ff007f;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 0, 128, 0.7);
+  animation: pulseComboBadge 0.7s infinite alternate;
+}
+
+@keyframes pulseComboBadge {
+  0% { transform: scale(1); filter: drop-shadow(0 0 6px #ff007f); }
+  100% { transform: scale(1.08); filter: drop-shadow(0 0 14px #ffd700); }
 }
 
 .terminal-badge {
@@ -1181,13 +1270,82 @@ body {
   background: rgba(0, 245, 255, 0.1);
   padding: 2px 8px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .passage-box-wrapper {
-  padding: 32px 36px;
+  padding: 28px 36px;
   position: relative;
   cursor: text;
   min-height: 180px;
+  max-height: 220px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.passage-box-wrapper::-webkit-scrollbar {
+  width: 5px;
+}
+.passage-box-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.passage-box-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(0, 245, 255, 0.25);
+  border-radius: 4px;
+}
+
+/* Keystroke FX Canvas & Floating Popups */
+.keystroke-fx-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.floating-popups-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.floating-popup {
+  position: absolute;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 0.92rem;
+  letter-spacing: 1px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: floatUpAndFade 0.75s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.floating-popup.streak {
+  color: #ffd700;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.75);
+}
+
+.floating-popup.bonus {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px rgba(0, 245, 255, 0.8);
+}
+
+.floating-popup.perfect {
+  color: var(--neon-emerald);
+  text-shadow: 0 0 12px rgba(0, 255, 136, 0.8);
+}
+
+@keyframes floatUpAndFade {
+  0% { opacity: 1; transform: translate(-50%, 0) scale(0.8); }
+  30% { transform: translate(-50%, -16px) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -36px) scale(0.9); }
 }
 
 .hidden-input {
@@ -1208,16 +1366,18 @@ body {
   letter-spacing: 0.5px;
   user-select: none;
   -webkit-user-select: none;
+  position: relative;
+  z-index: 2;
 }
 
-/* Character formatting */
+/* Character formatting - ZERO LATENCY TRANSITIONS */
 .char {
   position: relative;
-  transition: color 0.05s ease, background-color 0.05s ease;
+  transition: none; /* Instant 0ms response */
 }
 
 .char.untyped {
-  color: #475569;
+  color: #4b5563;
 }
 
 .char.correct {
@@ -1226,21 +1386,15 @@ body {
 }
 
 .char.wrong {
-  color: #fff;
-  background-color: rgba(255, 45, 85, 0.45);
+  color: #ffffff;
+  background-color: rgba(255, 45, 85, 0.55);
   border-radius: 3px;
-  animation: shakeChar 0.18s ease-in-out;
-}
-
-@keyframes shakeChar {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
+  text-shadow: 0 0 8px rgba(255, 45, 85, 0.8);
 }
 
 .char.current {
-  color: #fff;
-  background: rgba(0, 245, 255, 0.2);
+  color: #ffffff;
+  background: rgba(0, 245, 255, 0.22);
   border-bottom: 2px solid var(--neon-cyan);
   border-radius: 2px;
 }
@@ -1253,13 +1407,13 @@ body {
   width: 100%;
   height: 3px;
   background: var(--neon-cyan);
-  box-shadow: var(--cyan-glow);
-  animation: caretBlink 0.9s infinite;
+  box-shadow: 0 0 10px var(--neon-cyan);
+  animation: caretBlink 0.85s infinite;
 }
 
 @keyframes caretBlink {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  50% { opacity: 0.15; }
 }
 
 .passage-hint {
